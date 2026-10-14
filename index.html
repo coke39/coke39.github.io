@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash Timer</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: grey; }
+        .timer-box { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        #round-display { font-size: 36px; font-weight: bold; color: black; margin: 0px 0; }
+        #time-display { font-size: 96px; font-weight: bold; color: black; margin: 0px 0; }
+        #start-btn { font-size: 24px; padding: 10px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #setup-btn { font-size: 24px; padding: 10px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #setup-btn:disabled { background: #ccc; cursor: not-allowed; }
+        #r-time { font-size: 24px; font-weight: bold; color: black; margin: 5px 0; }
+        #myname-display { font-size: 12px; font-weight: normal; color: black; margin: 0px 0; }
+    </style>
+</head>
+<body>
+
+<div class="timer-box">
+    <div id="round-display">Flash: 0/0</div>
+    <div id="time-display">0</div>
+    <button id="start-btn">start / reset</button>
+    <br><br>
+    <hr>
+    <div id="r-time">0:00</div>
+    <hr>
+    <button id="setup-btn" onclick="setup()">setting</button>
+    <br><br>
+    <div id="myname-display">Flash Timer 261014</div>
+</div>
+
+<script>
+let countdown;
+let roundNow = 0;
+let timeLeft;
+let rounds = 30;
+let interval = 10;
+let pre_start = 5;
+let timerRunning = false;
+const Rdisplay = document.getElementById("round-display");
+const Tdisplay = document.getElementById("time-display");
+const RTime = document.getElementById("r-time");
+const button = document.getElementById("setup-btn");
+let audioCtx = null;
+
+Rdisplay.textContent = "Flash: 0/" + rounds;
+Tdisplay.textContent = pre_start;
+timeLeft = interval * (rounds-1) + pre_start;
+RTime.textContent = Math.floor(timeLeft/60) + ':' + String(timeLeft%60).padStart(2, '0');
+
+document.getElementById("start-btn").addEventListener("click", () => {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        gain.gain.value = 0;
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.01);
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    playBeep(440);
+    start();
+});
+
+function startTimer() {
+    countdown = setInterval(dispTime,1000);
+}
+
+function dispTime() {
+    timeLeft--;
+    tLm = timeLeft%interval;
+    Rdisplay.textContent = "Flash: " + roundNow + '/' + rounds;
+    Tdisplay.textContent = tLm;
+    RTime.textContent = Math.floor(timeLeft/60) + ':' + String(timeLeft%60).padStart(2, '0');
+    switch (tLm) {
+        case 0:
+            Rdisplay.textContent = "> Just Now! <";
+            Rdisplay.style.color = 'red';
+            roundNow++;
+            document.body.style.backgroundColor = 'lightyellow';
+            playBeep(1000);
+            break;
+        case 1:
+        case 2:
+        case 3:
+            Rdisplay.style.color = 'black';
+            Tdisplay.style.color = 'red';
+            document.body.style.backgroundColor = 'grey';
+            playBeep(500);
+            break;
+        default:
+            Rdisplay.style.color = 'black';
+            Tdisplay.style.color = 'black';
+            document.body.style.backgroundColor = 'grey';
+    }
+    if (timeLeft <= 0) {
+        clearInterval(countdown);
+        timerRunning = false;
+        Rdisplay.textContent = "Finish! ("+rounds+"/"+rounds+")";
+        button.disabled = false;
+        document.body.style.backgroundColor = 'lightblue';
+        playBeep(500);
+    }
+}
+
+function start() {
+    if (timerRunning==true) {
+        clearInterval(countdown);
+        timerRunning = false;
+        document.body.style.backgroundColor = 'grey';
+        Rdisplay.textContent = "Flash: 0/" + rounds;
+        Tdisplay.textContent = pre_start;
+        Tdisplay.style.color = 'black';
+        timeLeft = interval * (rounds-1) + pre_start;
+        RTime.textContent = Math.floor(timeLeft/60) + ':' + String(timeLeft%60).padStart(2, '0');
+        button.disabled = false;
+    } else {
+        timeLeft = interval * (rounds-1) + pre_start;
+        roundNow = 0;
+        RTime.textContent = Math.floor(timeLeft/60) + ':' + String(timeLeft%60).padStart(2, '0');
+        button.disabled = true;
+        startTimer();
+        timerRunning = true;
+    }
+}
+
+function setup() {
+    let T;
+    let parsed;
+    T = prompt("How many flashes?", rounds);
+    parsed = parseInt(T);
+    rounds = (Number.isNaN(parsed) || parsed <= 0) ? 30 : parsed;
+    T = prompt("Interval [seconds]?", interval);
+    parsed = parseInt(T);
+    interval = (Number.isNaN(parsed) || parsed <= 0) ? 10 : parsed;
+    T = prompt("Pre-start time [seconds]?", pre_start);
+    parsed = parseInt(T);
+    pre_start = (Number.isNaN(parsed) || parsed <= 0) ? 5 : parsed;
+    if (pre_start>interval) {
+        alert("NG Setting !\nThe pre-start time is set to the interval.");
+        pre_start = interval;
+    }
+    Rdisplay.textContent = "Flash: 0/" + rounds;
+    Rdisplay.style.color = 'black';
+    Tdisplay.textContent = pre_start;
+    Tdisplay.style.color = 'black';
+    timeLeft = interval * (rounds-1) + pre_start;
+    RTime.textContent = Math.floor(timeLeft/60) + ':' + String(timeLeft%60).padStart(2, '0');
+    document.body.style.backgroundColor = 'grey';
+}
+
+function playBeep(freq, duration = 2.0) {   // duration:Length of Beep
+    if (!audioCtx) return;
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    gain.gain.setValueAtTime(2.0, audioCtx.currentTime);    //1stPara:Volume of Beep
+    gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        audioCtx.currentTime + duration
+    );
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+</script>
+
+</body>
+</html>
