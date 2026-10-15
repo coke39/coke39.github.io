@@ -10,7 +10,7 @@
         #round-display { font-size: 36px; font-weight: bold; color: black; margin: 0px 0; }
         #time-display { font-size: 96px; font-weight: bold; color: black; margin: 0px 0; }
         #start-btn { font-size: 24px; padding: 10px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        #setup-btn { font-size: 24px; padding: 10px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #setup-btn { font-size: 24px; padding: 10px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px 0; }
         #setup-btn:disabled { background: #ccc; cursor: not-allowed; }
         #r-time { font-size: 24px; font-weight: bold; color: black; margin: 5px 0; }
         #myname-display { font-size: 12px; font-weight: normal; color: black; margin: 0px 0; }
@@ -27,8 +27,8 @@
     <div id="r-time">0:00</div>
     <hr>
     <button id="setup-btn" onclick="setup()">setting</button>
-    <br><br>
-    <div id="myname-display">Flash Timer 261014</div>
+    <br>
+    <div id="myname-display">Flash Timer 261015</div>
 </div>
 
 <script>
@@ -45,11 +45,12 @@ const RTime = document.getElementById("r-time");
 const button = document.getElementById("setup-btn");
 let audioCtx = null;
 
-Rdisplay.textContent = "Flash: 0/" + rounds;
+Rdisplay.textContent = "Pre-start";
 Tdisplay.textContent = pre_start;
 timeLeft = interval * (rounds-1) + pre_start;
 RTime.textContent = Math.floor(timeLeft/60) + ':' + String(timeLeft%60).padStart(2, '0');
 
+document.getElementById('start-btn').focus();
 document.getElementById("start-btn").addEventListener("click", () => {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -84,7 +85,7 @@ function dispTime() {
     RTime.textContent = Math.floor(timeLeft/60) + ':' + String(timeLeft%60).padStart(2, '0');
     switch (tLm) {
         case 0:
-            Rdisplay.textContent = "> Just Now! <";
+            Rdisplay.textContent = "Just Now!";
             Rdisplay.style.color = 'red';
             roundNow++;
             document.body.style.backgroundColor = 'lightyellow';
@@ -106,7 +107,7 @@ function dispTime() {
     if (timeLeft <= 0) {
         clearInterval(countdown);
         timerRunning = false;
-        Rdisplay.textContent = "Finish! ("+rounds+"/"+rounds+")";
+        Rdisplay.textContent = "Finish! (" + rounds + "/" +rounds + ")";
         button.disabled = false;
         document.body.style.backgroundColor = 'lightblue';
         playBeep(500);
@@ -118,7 +119,7 @@ function start() {
         clearInterval(countdown);
         timerRunning = false;
         document.body.style.backgroundColor = 'grey';
-        Rdisplay.textContent = "Flash: 0/" + rounds;
+        Rdisplay.textContent = "Pre-start";
         Tdisplay.textContent = pre_start;
         Tdisplay.style.color = 'black';
         timeLeft = interval * (rounds-1) + pre_start;
@@ -150,13 +151,14 @@ function setup() {
         alert("NG Setting !\nThe pre-start time is set to the interval.");
         pre_start = interval;
     }
-    Rdisplay.textContent = "Flash: 0/" + rounds;
+    Rdisplay.textContent = "Pre-start";
     Rdisplay.style.color = 'black';
     Tdisplay.textContent = pre_start;
     Tdisplay.style.color = 'black';
     timeLeft = interval * (rounds-1) + pre_start;
     RTime.textContent = Math.floor(timeLeft/60) + ':' + String(timeLeft%60).padStart(2, '0');
     document.body.style.backgroundColor = 'grey';
+    document.getElementById('start-btn').focus();
 }
 
 function playBeep(freq, duration = 2.0) {   // duration:Length of Beep
