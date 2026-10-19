@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2 Timer</title>
+
+<style>
+
+body{
+    font-family:sans-serif;
+    background:grey;
+    margin:0;
+    padding-top:50px;
+}
+.container{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+}
+.timer-box{
+    width:200px;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    text-align:center;
+}
+.bottom-box{
+    width:200px;
+    margin:10px auto 0 auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    text-align:center;
+}
+.round-display{
+    font-size:36px;
+    font-weight:bold;
+    color:black;
+}
+.time-display{
+    font-size:96px;
+    font-weight:bold;
+    color:black;
+}
+.start-btn,
+.setup-btn{
+    font-size:24px;
+    padding:10px 30px;
+    background:#007bff;
+    color:white;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+.setup-btn:disabled{
+    background:#ccc;
+    cursor:not-allowed;
+}
+.r-time{
+    font-size:24px;
+    font-weight:bold;
+    color:black;
+    margin: 5px 0;
+}
+.myname-display{
+    font-size:12px;
+    color:black;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <div id="timer-ch1" class="timer-box">
+        <h1>CH1</h1>
+        <hr>
+        <div class="round-display">Flash: 0/0</div>
+        <div class="time-display">0</div>
+        <button class="start-btn">start / reset</button>
+        <br><br>
+        <hr>
+        <div class="r-time">0:00</div>
+    </div>
+    <div id="timer-ch2" class="timer-box">
+        <h1>CH2</h1>
+        <hr>
+        <div class="round-display">Flash: 0/0</div>
+        <div class="time-display">0</div>
+        <button class="start-btn">start / reset</button>
+        <br><br>
+        <hr>
+        <div class="r-time">0:00</div>
+    </div>
+</div>
+<div class="bottom-box">
+        <button class="setup-btn">setting</button>
+        <br>
+        <div class="myname-display">
+            Flash Timer 261019
+        </div>
+</div>
+
+<script>
+
+class FlashTimer{
+
+    constructor(box){
+
+        this.roundDisplay=
+            box.querySelector(".round-display");
+
+        this.timeDisplay=
+            box.querySelector(".time-display");
+
+        this.rTime=
+            box.querySelector(".r-time");
+
+        this.startBtn=
+            box.querySelector(".start-btn");
+
+        this.rounds=30;
+        this.interval=10;
+        this.preStart=5;
+
+        this.roundNow=0;
+        this.timeLeft=0;
+
+        this.timerRunning=false;
+        this.countdown=null;
+
+        this.reset();
+
+        this.startBtn.addEventListener(
+            "click",
+            () => this.start()
+        );
+    }
+
+    beep(freq=1000,duration=0.15){
+
+        const ctx=
+            new(window.AudioContext||
+                  window.webkitAudioContext)();
+
+        const osc=
+            ctx.createOscillator();
+
+        const gain=
+            ctx.createGain();
+
+        osc.frequency.value=freq;
+        osc.type="sine";
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        gain.gain.setValueAtTime(
+            0.3,
+            ctx.currentTime
+        );
+
+        gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            ctx.currentTime+duration
+        );
+
+        osc.start();
+        osc.stop(ctx.currentTime+duration);
+    }
+
+    updateRemaining(){
+
+        const m=
+            Math.floor(this.timeLeft/60);
+
+        const s=
+            String(this.timeLeft%60)
+            .padStart(2,"0");
+
+        this.rTime.textContent=
+            `${m}:${s}`;
+    }
+
+    reset(){
+
+        this.roundNow=0;
+
+        this.timeLeft=
+            this.interval*(this.rounds-1)
+            +this.preStart;
+
+        this.roundDisplay.textContent=
+            "Pre-start";
+
+        this.roundDisplay.style.color=
+            "black";
+
+        this.timeDisplay.textContent=
+            this.preStart;
+
+        this.timeDisplay.style.color=
+            "black";
+
+        this.updateRemaining();
+    }
+
+    tick(){
+
+        this.timeLeft--;
+
+        let remain=
+            this.timeLeft%
+            this.interval;
+
+        if(this.roundNow===0 &&
+           this.timeLeft >
+           this.interval*(this.rounds-1)){
+        }
+        else{
+
+            this.roundDisplay.textContent=
+                `Flash: ${this.roundNow}/${this.rounds}`;
+        }
+
+        this.timeDisplay.textContent=
+            remain;
+
+        this.updateRemaining();
+
+        if(remain<=3 && remain>0){
+
+            this.timeDisplay.style.color=
+                "red";
+
+            this.beep(600);
+        }
+        else{
+            this.timeDisplay.style.color=
+                "black";
+        }
+
+        if(remain===0){
+
+            this.roundNow++;
+
+            this.roundDisplay.textContent=
+                "Just Now!";
+
+            this.roundDisplay.style.color=
+                "red";
+
+            this.beep(1200);
+        }
+        else{
+            this.roundDisplay.style.color=
+                "black";
+        }
+
+        if(this.timeLeft<=0){
+
+            clearInterval(this.countdown);
+
+            this.roundDisplay.textContent=
+                "Finish!";
+
+            this.timeDisplay.textContent=
+                "0";
+
+            this.timerRunning=false;
+
+            updateSetupButton();
+
+            this.beep(1500,0.4);
+        }
+    }
+
+    start(){
+
+        if(this.timerRunning){
+
+            clearInterval(this.countdown);
+
+            this.timerRunning=false;
+
+            updateSetupButton();
+
+            this.reset();
+
+            return;
+        }
+
+        this.roundNow=0;
+
+        this.timeLeft=
+            this.interval*(this.rounds-1)
+            +this.preStart;
+
+        this.countdown=
+            setInterval(
+                ()=>this.tick(),
+                1000
+            );
+
+        this.timerRunning=true;
+
+        updateSetupButton();
+    }
+
+    setConfig(rounds, interval, preStart) {
+
+    	this.rounds = rounds;
+    	this.interval = interval;
+    	this.preStart = preStart;
+
+    	this.reset();
+    }
+
+    setup(){
+
+        let input;
+        let value;
+
+input = prompt(
+    "How many flashes ?",
+    this.rounds
+);
+value = parseInt(input, 10);
+this.rounds = (Number.isNaN(value) || value <= 0) ? 30 : parsed;
+
+input = prompt(
+    "Interval(sec) ?",
+    this.interval
+);
+value = parseInt(input, 10);
+this.interval = (Number.isNaN(value) || value <= 0) ? 10 : parsed;
+
+input = prompt(
+    "Pre-start(sec) ?",
+    this.preStart
+);
+value = parseInt(input, 10);
+this.preStart = (Number.isNaN(value) || value <= 0) ? 5 : parsed;
+
+
+/*        input = prompt("Interval(sec) ?", this.interval);
+        value = parseInt(input, 10);
+        if (input !== null && !isNaN(value) && value > 0) {
+            this.interval = value;
+        }
+
+        input = prompt("Pre-start(sec) ?", this.preStart);
+        value = parseInt(input, 10);
+        if (input !== null && !isNaN(value) && value > 0) {
+            this.preStart = value;
+        }
+*/
+        if(this.preStart>this.interval)
+            this.preStart=this.interval;
+
+        this.reset();
+    }
+
+}
+
+function updateSetupButton() {
+
+    const btn =
+        document.querySelector(".setup-btn");
+
+    btn.disabled =
+        timer1.timerRunning ||
+        timer2.timerRunning;
+
+}
+
+const timerBoxes =
+    document.querySelectorAll(".timer-box");
+
+const timer1 =
+    new FlashTimer(
+        document.getElementById("timer-ch1")
+    );
+
+const timer2 =
+    new FlashTimer(
+        document.getElementById("timer-ch2")
+    );
+
+document
+    .querySelector(".setup-btn")
+    .addEventListener("click", () => {
+
+        const rounds = parseInt(
+            prompt("How many flashes ?", 30)
+        );
+
+        const interval = parseInt(
+            prompt("Interval(sec) ?", 10)
+        );
+
+        const preStart = parseInt(
+            prompt("Pre-start(sec) ?", 5)
+        );
+
+
+        timer1.setConfig(
+            rounds,
+            interval,
+            preStart
+        );
+
+        timer2.setConfig(
+            rounds,
+            interval,
+            preStart
+        );
+
+    });
+
+</script>
+
+</body>
+</html>
