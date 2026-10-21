@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LCUS-2 Test</title>
+</head>
+<body>
+
+<span id="status">Disconnected</span><br>
+<button id="connectBtn">Connect</button>
+<button id="CH1-ONBtn">CH1-ON</button>
+<button id="CH1-OFFBtn">CH1-OFF</button>
+<button id="CH2-ONBtn">CH2-ON</button>
+<button id="CH2-OFFBtn">CH2-OFF</button>
+<button id="CH1-ONOFFBtn">CH1-ONOFF</button>
+<button id="CH2-ONOFFBtn">CH2-ONOFF</button>
+<button id="disconnectBtn">Disconnect</button>
+
+<script>
+
+const status = document.getElementById("status");
+const LCUS2 = {port: null, connected: false};
+const CH1ON  = new Uint8Array([0xA0, 0x01, 0x01, 0xA2]);
+const CH1OFF = new Uint8Array([0xA0, 0x01, 0x00, 0xA1]);
+const CH2ON  = new Uint8Array([0xA0, 0x02, 0x01, 0xA3]);
+const CH2OFF = new Uint8Array([0xA0, 0x02, 0x00, 0xA2]);
+let relayPulseTime = 300;
+
+document.getElementById('CH1-ONBtn').disabled = true;
+document.getElementById('CH1-OFFBtn').disabled = true;
+document.getElementById('CH2-ONBtn').disabled = true;
+document.getElementById('CH2-OFFBtn').disabled = true;
+document.getElementById('CH1-ONOFFBtn').disabled = true;
+document.getElementById('CH2-ONOFFBtn').disabled = true;
+
+async function connectLCUS2(){
+    try {
+        LCUS2.port = await navigator.serial.requestPort();
+        await LCUS2.port.open({
+            baudRate: 9600,
+            dataBits: 8,
+            stopBits: 1,
+            parity: "none",
+            flowControl: "none"
+        });
+        LCUS2.connected = true;
+        document.getElementById('connectBtn').textContent = 'Connected';
+        document.getElementById('connectBtn').disabled = true;
+        await CHallOFF();
+        status.textContent = "Connected";
+        document.getElementById('CH1-ONBtn').disabled = false;
+        document.getElementById('CH1-OFFBtn').disabled = false;
+        document.getElementById('CH2-ONBtn').disabled = false;
+        document.getElementById('CH2-OFFBtn').disabled = false;
+        document.getElementById('CH1-ONOFFBtn').disabled = false;
+        document.getElementById('CH2-ONOFFBtn').disabled = false;
+    } catch (error) {
+        LCUS2.connected = false;
+        console.error("Connection error: ", error);
+        alert(
+            "Failed to connect to LCUS-2.\n\n" +
+            "Please reload this page after connecting."
+        );
+    }
+}
+
+async function sendCommand(commandArray) {
+    if (!LCUS2.port || !LCUS2.port.writable) return;
+    const writer = LCUS2.port.writable.getWriter();
+    await writer.write(commandArray);
+    writer.releaseLock();
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+    if (window.confirm("Do you want to connect to LCUS-2?")) {
+        document.getElementById('connectBtn').click();
+    } else {
+        alert("Not connected.");
+    }
+});
+
+window.addEventListener("beforeunload", () => {
+    try {
+        CHallOFF();
+    } catch (e) {}
+});
+
+document.getElementById('connectBtn').addEventListener('click', async () => {
+    await connectLCUS2();
+});
+
+document.getElementById('CH1-ONBtn').addEventListener('click', async () => {
+    await sendCommand(CH1ON);
+});
+
+document.getElementById('CH1-OFFBtn').addEventListener('click', async () => {
+    await sendCommand(CH1OFF);
+});
+
+document.getElementById('CH2-ONBtn').addEventListener('click', async () => {
+    await sendCommand(CH2ON);
+});
+
+document.getElementById('CH2-OFFBtn').addEventListener('click', async () => {
+    await sendCommand(CH2OFF);
+});
+
+document.getElementById('CH1-ONOFFBtn').addEventListener('click', async () => {
+    await relayPulseCH1();
+});
+
+document.getElementById('CH2-ONOFFBtn').addEventListener('click', async () => {
+    await relayPulseCH2();
+});
+
+document.getElementById('disconnectBtn').addEventListener('click', async () => {
+    await disconnectLCUS2();
+});
+
+async function CHallOFF(){
+    await sendCommand(CH1OFF);
+    await sendCommand(CH2OFF);
+}
+
+async function relayPulseCH1(ms=relayPulseTime){
+    await sendCommand(CH1ON);
+    setTimeout(async ()=>{
+        await sendCommand(CH1OFF);
+    }, ms);
+}
+
+async function relayPulseCH2(ms=relayPulseTime){
+    await sendCommand(CH2ON);
+    setTimeout(async ()=>{
+        await sendCommand(CH2OFF);
+    }, ms);
+}
+
+/*
+if (LCUS2.connected) {
+    relayPulseCH1();
+}
+*/
+
+async function disconnectLCUS2() {
+    if (LCUS2.port) {
+        await CHallOFF();
+        await LCUS2.port.close();
+        LCUS2.connected = false;
+    }
+}
+
+</script>
+</body>
+</html>
