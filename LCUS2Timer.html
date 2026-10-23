@@ -294,6 +294,7 @@ class FlashTimer{
     tick(){
         this.timeLeft--;
         if(this.timeLeft<=0){
+            if (LCUS2.connected) sendPulse(this.sigON, this.sigOFF);
             clearInterval(this.countdown);
             this.roundDisplay.textContent = "Finish!";
             this.roundDisplay.style.color = "red";
@@ -326,7 +327,7 @@ class FlashTimer{
     }
 
     start(){
-        beep(400);
+        beep(300);
         if(this.timerRunning){
             clearInterval(this.countdown);
             this.timerRunning=false;
