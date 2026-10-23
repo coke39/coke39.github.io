@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LCUS2 Timer</title>
+<title>LCUS-2 Timer</title>
 
 <style>
 
@@ -27,7 +27,7 @@ body{
     text-align:center;
 }
 .bottom-box{
-    width:200px;
+    width:250px;
     margin:10px auto 0 auto;
     background:white;
     padding:20px;
@@ -54,7 +54,22 @@ body{
     border-radius:5px;
     cursor:pointer;
 }
+.start-btn:disabled,
 .setup-btn:disabled{
+    background:#ccc;
+    cursor:not-allowed;
+}
+.IO-btn{
+    font-size:24px;
+    margin-right:10px;
+    padding:10px 30px;
+    background:#007bff;
+    color:white;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+.IO-btn:disabled{
     background:#ccc;
     cursor:not-allowed;
 }
@@ -97,23 +112,155 @@ body{
     </div>
 </div>
 <div class="bottom-box">
+        <button class="IO-btn">On</button>
         <button class="setup-btn">setting</button>
         <br>
         <div class="myname-display">
-            LCUS-2 Timer 261021
+            LCUS-2 Timer 261023
         </div>
 </div>
 
 <script>
 
-let port = null;
+const LCUS2 = {port: null, connected: false};
+const CH1ON  = new Uint8Array([0xA0, 0x01, 0x01, 0xA2]);
+const CH1OFF = new Uint8Array([0xA0, 0x01, 0x00, 0xA1]);
+const CH2ON  = new Uint8Array([0xA0, 0x02, 0x01, 0xA3]);
+const CH2OFF = new Uint8Array([0xA0, 0x02, 0x00, 0xA2]);
+let pulseWidth = 300;
 let rounds = 30;
 let interval = 10;
 let preStart = 5;
 let audioCtx = null;
+let isDEMO = false;
+
+async function connectLCUS2(){
+    try {
+        LCUS2.port = await navigator.serial.requestPort();
+        await LCUS2.port.open({
+            baudRate: 9600,
+            dataBits: 8,
+            stopBits: 1,
+            parity: "none",
+            flowControl: "none"
+        });
+        LCUS2.connected = true;
+        await allOFF();
+        document.querySelector('.IO-btn').textContent = 'Off';
+        document.querySelectorAll('.start-btn').forEach(btn => {
+            btn.disabled = false;
+        });
+        document.querySelector('.IO-btn').disabled = false;
+        document.querySelector('.setup-btn').disabled = false;
+        updateSetupButton();
+    } catch (error) {
+        LCUS2.connected = false;
+        LCUS2.port = null;
+        console.error("Connection error: ", error);
+        alert(
+            "Failed to connect to LCUS-2.\n\n" +
+            "Please reload this page after connecting."
+        );
+    }
+}
+
+async function disconnectLCUS2() {
+    if (LCUS2.port) {
+        await allOFF();
+        try {
+            await LCUS2.port.close();
+        }
+        catch(error) {
+            console.error(error);
+        }
+        LCUS2.port = null;
+        LCUS2.connected = false;
+        document.querySelector('.IO-btn').textContent = 'On';
+        document.querySelectorAll('.start-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+        document.querySelector('.IO-btn').disabled = false;
+        document.querySelector('.setup-btn').disabled = true;
+    }
+}
+
+async function sendCommand(commandArray) {
+    if (!LCUS2.port || !LCUS2.port.writable) return;
+    const writer = LCUS2.port.writable.getWriter();
+    await writer.write(commandArray);
+    writer.releaseLock();
+}
+
+async function sendPulse(sigON, sigOFF){
+    try{
+        await sendCommand(sigON);
+        setTimeout(async ()=>{
+            try{
+                await sendCommand(sigOFF);
+            }
+            catch(error){
+                console.error(error);
+            }
+        }, pulseWidth);
+    }
+    catch(error){
+        console.error(error);
+    }
+}
+
+async function allOFF(){
+    await sendCommand(CH1OFF);
+    await sendCommand(CH2OFF);
+}
+
+function beep(freq = 1000, duration = 0.1){
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+    }
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+function updateSetupButton(){
+    const running = timer1.timerRunning || timer2.timerRunning;
+    document.querySelector(".setup-btn").disabled = running;
+    document.querySelector(".IO-btn").disabled = running;
+    if (isDEMO) document.querySelector(".IO-btn").disabled = true;
+}
+
+function getValue(message, currentValue){
+    const input = prompt(message, currentValue);
+    if (input === null) {
+        return currentValue;
+    }
+    const value = parseInt(input, 10);
+    return (!isNaN(value) && value > 0) ? value : currentValue;
+}
+
+function setupConfig(){
+    beep(600);
+    rounds = getValue("How many flashes ?", rounds);
+    interval = getValue("Interval(sec) ?", interval);
+    preStart = getValue("Pre-start(sec) ?", preStart);
+    if (preStart > interval) {
+        preStart = interval;
+    }
+    timer1.reset();
+    timer2.reset();
+}
 
 class FlashTimer{
-    constructor(box){
+    constructor(box, sigON, sigOFF){
         this.roundDisplay = box.querySelector(".round-display");
         this.timeDisplay = box.querySelector(".time-display");
         this.rTime = box.querySelector(".r-time");
@@ -122,6 +269,8 @@ class FlashTimer{
         this.timeLeft = 0;
         this.timerRunning = false;
         this.countdown = null;
+        this.sigON = sigON;
+        this.sigOFF = sigOFF;
         this.reset();
         this.startBtn.addEventListener("click", () => this.start());
     }
@@ -147,7 +296,9 @@ class FlashTimer{
         if(this.timeLeft<=0){
             clearInterval(this.countdown);
             this.roundDisplay.textContent = "Finish!";
+            this.roundDisplay.style.color = "red";
             this.timeDisplay.textContent = "0";
+            this.rTime.textContent = "0:00";
             this.timerRunning = false;
             updateSetupButton();
             beep(1200,0.4);
@@ -159,14 +310,12 @@ class FlashTimer{
         this.updateRemaining();
         if(remain<=3 && remain>=0){
             this.timeDisplay.style.color = "red";
-            if(remain===1){
-                beep(600);
-            }
         }
         else{
             this.timeDisplay.style.color = "black";
         }
         if(remain===0){
+            if (LCUS2.connected) sendPulse(this.sigON, this.sigOFF);
             this.roundNow++;
             this.roundDisplay.textContent = "Just Now!";
             this.roundDisplay.style.color = "red";
@@ -193,63 +342,59 @@ class FlashTimer{
     }
 }
 
-function beep(freq = 1000, duration = 0.1){
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === "suspended") {
-        audioCtx.resume();
-    }
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.frequency.value = freq;
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
-}
+const timer1 = new FlashTimer(document.getElementById("timer-ch1"), CH1ON, CH1OFF);
 
-function updateSetupButton(){
-    const btn = document.querySelector(".setup-btn");
-    btn.disabled = timer1.timerRunning || timer2.timerRunning;
-}
+const timer2 = new FlashTimer(document.getElementById("timer-ch2"), CH2ON, CH2OFF);
 
-function getValue(message, currentValue){
-    const input = prompt(message, currentValue);
-    if (input === null) {
-        return currentValue;
-    }
-    const value = parseInt(input, 10);
-    return (!isNaN(value) && value > 0) ? value : currentValue;
-}
-
-function setupConfig(){
-    rounds = getValue("How many flashes ?", rounds);
-    interval = getValue("Interval(sec) ?", interval);
-    preStart = getValue("Pre-start(sec) ?", preStart);
-    if (preStart > interval) {
-        preStart = interval;
-    }
-    timer1.reset();
-    timer2.reset();
-}
-
-const timer1 = new FlashTimer(document.getElementById("timer-ch1"));
-const timer2 = new FlashTimer(document.getElementById("timer-ch2"));
 document.querySelector(".setup-btn").addEventListener("click", setupConfig);
+
+document.querySelector(".IO-btn").addEventListener('click', async () => {
+    beep(600);
+    if (LCUS2.connected) {
+        if (window.confirm("Disconnect from LCUS-2?\n\nOK: Disconnect\nCancel: Change the pulse width.")) {
+            await disconnectLCUS2();
+        } else {
+            pulseWidth = getValue("Pulse width(msec) ? (1-500)", pulseWidth);
+            if (pulseWidth > 500) pulseWidth = 500;
+        }
+    } else {
+        if (window.confirm("Do you want to connect to LCUS-2?")) {
+            await connectLCUS2();
+        } else {
+            alert(
+                "This is DEMO mode.\n\n" +
+                "You will need either the Windows version of Chrome or Edge,\n" +
+                "and an LCUS-2 USB relay module."
+            );
+            isDEMO = true;
+            document.querySelectorAll('.start-btn').forEach(btn => {
+                btn.disabled = !isDEMO;
+            });
+            document.querySelector('.IO-btn').disabled = isDEMO
+            document.querySelector('.setup-btn').disabled = !isDEMO;
+        }
+    }
+});
+
 document.addEventListener("DOMContentLoaded", function() {
     const ua = navigator.userAgent.toLowerCase();
     const isWindows = ua.includes("windows");
     const isChromeOrEdge = ua.includes("chrome") || ua.includes("edg");
-    if (!isWindows || !isChromeOrEdge || port===null) {
+    if (!isWindows || !isChromeOrEdge) {
         alert(
             "This is DEMO mode.\n\n" +
             "You will need either the Windows version of Chrome or Edge,\n" +
             "and an LCUS-2 USB relay module."
         );
+        isDEMO = true;
+    } else {
+        isDEMO = false;
     }
+    document.querySelectorAll('.start-btn').forEach(btn => {
+        btn.disabled = !isDEMO;
+    });
+    document.querySelector('.IO-btn').disabled = isDEMO
+    document.querySelector('.setup-btn').disabled = !isDEMO;
 });
 
 </script>
