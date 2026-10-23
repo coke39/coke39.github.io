@@ -16,7 +16,7 @@
 <button id="CH2-OFFBtn">CH2-OFF</button>
 <button id="CH1-PulseBtn">CH1-Pulse</button>
 <button id="CH2-PulseBtn">CH2-Pulse</button>
-<button id="LCUS-2Btn">LCUS-2</button>
+<button id="IOBtn">I/O</button>
 
 <script>
 
@@ -39,7 +39,6 @@ async function connectLCUS2(){
             flowControl: "none"
         });
         LCUS2.connected = true;
-//        document.getElementById('connectBtn').textContent = 'Connected';
         document.getElementById('connectBtn').disabled = true;
         await allOFF();
         status.textContent = "Connected";
@@ -75,17 +74,24 @@ async function sendCommand(commandArray) {
     writer.releaseLock();
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-    if (window.confirm("Do you want to connect to LCUS-2?")) {
-        document.getElementById('connectBtn').click();  //Or push Connect!
-    } else {
-        alert("Not connected.");
-    }
-});
+async function allOFF(){
+    await sendCommand(CH1OFF);
+    await sendCommand(CH2OFF);
+}
 
-window.addEventListener("beforeunload", () => {
-    disconnectLCUS2();
-});
+async function CH1Pulse(ms=pulseWidth){
+    await sendCommand(CH1ON);
+    setTimeout(async ()=>{
+        await sendCommand(CH1OFF);
+    }, ms);
+}
+
+async function CH2Pulse(ms=pulseWidth){
+    await sendCommand(CH2ON);
+    setTimeout(async ()=>{
+        await sendCommand(CH2OFF);
+    }, ms);
+}
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
     await connectLCUS2();
@@ -119,9 +125,9 @@ document.getElementById('CH2-PulseBtn').addEventListener('click', async () => {
     if (LCUS2.connected) await CH2Pulse();
 });
 
-document.getElementById('LCUS-2Btn').addEventListener('click', async () => {
+document.getElementById('IOBtn').addEventListener('click', async () => {
     if (LCUS2.connected) {
-        if (window.confirm("Disconnect from LCUS-2?\n\nYes: Disconnect\nCancel: Change the pulse width.")) {
+        if (window.confirm("Disconnect from LCUS-2?\n\nOK: Disconnect\nCancel: Change the pulse width.")) {
             await disconnectLCUS2();
         } else {
             pulseWidth = getValue("Pulse width(msec) ? (1-500)", pulseWidth);
@@ -142,29 +148,6 @@ function getValue(message, currentValue){
     const value = parseInt(input, 10);
     return (!isNaN(value) && value > 0) ? value : currentValue;
 }
-
-async function allOFF(){
-    await sendCommand(CH1OFF);
-    await sendCommand(CH2OFF);
-}
-
-async function CH1Pulse(ms=pulseWidth){
-    await sendCommand(CH1ON);
-    setTimeout(async ()=>{
-        await sendCommand(CH1OFF);
-    }, ms);
-}
-
-async function CH2Pulse(ms=pulseWidth){
-    await sendCommand(CH2ON);
-    setTimeout(async ()=>{
-        await sendCommand(CH2OFF);
-    }, ms);
-}
-
-/* example code into Timer code
-if (LCUS2.connected) await CH1Pulse();
-*/
 
 </script>
 </body>
