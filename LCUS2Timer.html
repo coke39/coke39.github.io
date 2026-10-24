@@ -116,7 +116,7 @@ body{
         <button class="setup-btn">setting</button>
         <br>
         <div class="myname-display">
-            LCUS-2 Timer 261023
+            LCUS-2 Timer 261026
         </div>
 </div>
 
@@ -176,11 +176,8 @@ async function disconnectLCUS2() {
         LCUS2.port = null;
         LCUS2.connected = false;
         document.querySelector('.IO-btn').textContent = 'On';
-        document.querySelectorAll('.start-btn').forEach(btn => {
-            btn.disabled = true;
-        });
-        document.querySelector('.IO-btn').disabled = false;
-        document.querySelector('.setup-btn').disabled = true;
+        isDEMO = false;
+        firstSetButton();
     }
 }
 
@@ -192,20 +189,10 @@ async function sendCommand(commandArray) {
 }
 
 async function sendPulse(sigON, sigOFF){
-    try{
         await sendCommand(sigON);
         setTimeout(async ()=>{
-            try{
-                await sendCommand(sigOFF);
-            }
-            catch(error){
-                console.error(error);
-            }
+            await sendCommand(sigOFF);
         }, pulseWidth);
-    }
-    catch(error){
-        console.error(error);
-    }
 }
 
 async function allOFF(){
@@ -213,7 +200,7 @@ async function allOFF(){
     await sendCommand(CH2OFF);
 }
 
-function beep(freq = 1000, duration = 0.1){
+function beep(freq = 1000, duration = 2.0){    // duration:Length of Beep
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -222,13 +209,23 @@ function beep(freq = 1000, duration = 0.1){
     }
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
+    osc.type = "sine";
     osc.frequency.value = freq;
+    gain.gain.value = 0;
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.setValueAtTime(2.0, audioCtx.currentTime);    //1stPara:Volume of Beep
     gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
     osc.start();
     osc.stop(audioCtx.currentTime + duration);
+}
+
+function firstSetButton() {
+    document.querySelectorAll('.start-btn').forEach(btn => {
+        btn.disabled = !isDEMO;
+    });
+    document.querySelector('.IO-btn').disabled = isDEMO
+    document.querySelector('.setup-btn').disabled = !isDEMO;
 }
 
 function updateSetupButton(){
@@ -248,7 +245,7 @@ function getValue(message, currentValue){
 }
 
 function setupConfig(){
-    beep(600);
+    beep(500);
     rounds = getValue("How many flashes ?", rounds);
     interval = getValue("Interval(sec) ?", interval);
     preStart = getValue("Pre-start(sec) ?", preStart);
@@ -302,7 +299,7 @@ class FlashTimer{
             this.rTime.textContent = "0:00";
             this.timerRunning = false;
             updateSetupButton();
-            beep(1200,0.4);
+            beep(1000);
             return;
         }
         let remain = this.timeLeft%interval;
@@ -327,7 +324,7 @@ class FlashTimer{
     }
 
     start(){
-        beep(300);
+        beep(440);
         if(this.timerRunning){
             clearInterval(this.countdown);
             this.timerRunning=false;
@@ -350,29 +347,35 @@ const timer2 = new FlashTimer(document.getElementById("timer-ch2"), CH2ON, CH2OF
 document.querySelector(".setup-btn").addEventListener("click", setupConfig);
 
 document.querySelector(".IO-btn").addEventListener('click', async () => {
-    beep(600);
+    beep(500);
     if (LCUS2.connected) {
-        if (window.confirm("Disconnect from LCUS-2?\n\nOK: Disconnect\nCancel: Change the pulse width.")) {
+        if (window.confirm(
+            "Disconnect to LCUS-2?\n\n" +
+            "OK: Disconnect\n" +
+            "Cancel: Change the pulse width."
+        )) {
             await disconnectLCUS2();
         } else {
             pulseWidth = getValue("Pulse width(msec) ? (1-500)", pulseWidth);
             if (pulseWidth > 500) pulseWidth = 500;
         }
     } else {
-        if (window.confirm("Do you want to connect to LCUS-2?")) {
+        if (window.confirm(
+            "Connect to LCUS-2?\n\n" +
+            "In the next window, select USB Serial and click Connect.\n\n" +
+            "* It might not appear on the list at first.\n" +
+            "  Then wait a few tens of seconds, then reload the page."
+         )) {
             await connectLCUS2();
         } else {
             alert(
                 "This is DEMO mode.\n\n" +
+                "To exit DEMO mode, reload the page.\n\n" +
                 "You will need either the Windows version of Chrome or Edge,\n" +
                 "and an LCUS-2 USB relay module."
             );
             isDEMO = true;
-            document.querySelectorAll('.start-btn').forEach(btn => {
-                btn.disabled = !isDEMO;
-            });
-            document.querySelector('.IO-btn').disabled = isDEMO
-            document.querySelector('.setup-btn').disabled = !isDEMO;
+            firstSetButton();
         }
     }
 });
@@ -391,11 +394,7 @@ document.addEventListener("DOMContentLoaded", function() {
     } else {
         isDEMO = false;
     }
-    document.querySelectorAll('.start-btn').forEach(btn => {
-        btn.disabled = !isDEMO;
-    });
-    document.querySelector('.IO-btn').disabled = isDEMO
-    document.querySelector('.setup-btn').disabled = !isDEMO;
+    firstSetButton();
 });
 
 </script>
