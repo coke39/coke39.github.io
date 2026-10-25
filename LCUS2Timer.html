@@ -134,7 +134,7 @@ let preStart = 5;
 let audioCtx = null;
 let isDEMO = false;
 
-async function connectLCUS2(){
+async function connectLCUS2() {
     try {
         LCUS2.port = await navigator.serial.requestPort();
         await LCUS2.port.open({
@@ -177,7 +177,7 @@ async function disconnectLCUS2() {
         LCUS2.connected = false;
         document.querySelector('.IO-btn').textContent = 'On';
         isDEMO = false;
-        firstSetButton();
+        changeMode();
     }
 }
 
@@ -188,19 +188,19 @@ async function sendCommand(commandArray) {
     writer.releaseLock();
 }
 
-async function sendPulse(sigON, sigOFF){
-        await sendCommand(sigON);
-        setTimeout(async ()=>{
-            await sendCommand(sigOFF);
-        }, pulseWidth);
+async function sendPulse(sigON, sigOFF) {
+    await sendCommand(sigON);
+    setTimeout(async ()=>{
+        await sendCommand(sigOFF);
+    }, pulseWidth);
 }
 
-async function allOFF(){
+async function allOFF() {
     await sendCommand(CH1OFF);
     await sendCommand(CH2OFF);
 }
 
-function beep(freq = 1000, duration = 2.0){    // duration:Length of Beep
+function beep(freq = 1000, duration = 2.0) {    // duration:Length of Beep
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -220,7 +220,7 @@ function beep(freq = 1000, duration = 2.0){    // duration:Length of Beep
     osc.stop(audioCtx.currentTime + duration);
 }
 
-function firstSetButton() {
+function changeMode() {
     document.querySelectorAll('.start-btn').forEach(btn => {
         btn.disabled = !isDEMO;
     });
@@ -228,14 +228,14 @@ function firstSetButton() {
     document.querySelector('.setup-btn').disabled = !isDEMO;
 }
 
-function updateSetupButton(){
+function updateSetupButton() {
     const running = timer1.timerRunning || timer2.timerRunning;
     document.querySelector(".setup-btn").disabled = running;
     document.querySelector(".IO-btn").disabled = running;
     if (isDEMO) document.querySelector(".IO-btn").disabled = true;
 }
 
-function getValue(message, currentValue){
+function getValue(message, currentValue) {
     const input = prompt(message, currentValue);
     if (input === null) {
         return currentValue;
@@ -244,7 +244,7 @@ function getValue(message, currentValue){
     return (!isNaN(value) && value > 0) ? value : currentValue;
 }
 
-function setupConfig(){
+function setupConfig() {
     beep(500);
     rounds = getValue("How many flashes ?", rounds);
     interval = getValue("Interval(sec) ?", interval);
@@ -256,7 +256,7 @@ function setupConfig(){
     timer2.reset();
 }
 
-class FlashTimer{
+class FlashTimer {
     constructor(box, sigON, sigOFF){
         this.roundDisplay = box.querySelector(".round-display");
         this.timeDisplay = box.querySelector(".time-display");
@@ -362,20 +362,21 @@ document.querySelector(".IO-btn").addEventListener('click', async () => {
     } else {
         if (window.confirm(
             "Connect to LCUS-2?\n\n" +
-            "In the next window, select USB Serial and click Connect.\n\n" +
+            "OK: In the next window, select USB Serial and click Connect.\n" +
             "* It might not appear on the list at first.\n" +
-            "  Then wait a few tens of seconds, then reload the page."
+            "  Then wait a few tens of seconds, then reload this page.\n\n" +
+            "Cancel: Go to DEMO mode."
          )) {
             await connectLCUS2();
         } else {
             alert(
                 "This is DEMO mode.\n\n" +
-                "To exit DEMO mode, reload the page.\n\n" +
+                "To exit DEMO mode, reload this page.\n\n" +
                 "You will need either the Windows version of Chrome or Edge,\n" +
                 "and an LCUS-2 USB relay module."
             );
             isDEMO = true;
-            firstSetButton();
+            changeMode();
         }
     }
 });
@@ -394,7 +395,7 @@ document.addEventListener("DOMContentLoaded", function() {
     } else {
         isDEMO = false;
     }
-    firstSetButton();
+    changeMode();
 });
 
 </script>
