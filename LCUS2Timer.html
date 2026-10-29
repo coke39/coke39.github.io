@@ -95,7 +95,7 @@ body{
         <hr>
         <div class="round-display">Flash: 0/0</div>
         <div class="time-display">0</div>
-        <button class="start-btn">start / reset</button>
+        <button class="start-btn">Start</button>
         <br><br>
         <hr>
         <div class="r-time">0:00</div>
@@ -105,7 +105,7 @@ body{
         <hr>
         <div class="round-display">Flash: 0/0</div>
         <div class="time-display">0</div>
-        <button class="start-btn">start / reset</button>
+        <button class="start-btn">Start</button>
         <br><br>
         <hr>
         <div class="r-time">0:00</div>
@@ -116,7 +116,7 @@ body{
         <button class="setup-btn">setting</button>
         <br>
         <div class="myname-display">
-            LCUS-2 Timer 261026
+            LCUS-2 Timer 261029
         </div>
 </div>
 
@@ -286,6 +286,10 @@ class FlashTimer {
         this.timeDisplay.textContent = preStart;
         this.timeDisplay.style.color = "black";
         this.updateRemaining();
+        if(this.startBtn.textContent === 'Reset'){
+            this.startBtn.textContent = 'Start';
+            this.startBtn.style.backgroundColor = '#007bff';
+	}
     }
 
     tick(){
@@ -293,12 +297,14 @@ class FlashTimer {
         if(this.timeLeft<=0){
             if (LCUS2.connected) sendPulse(this.sigON, this.sigOFF);
             clearInterval(this.countdown);
-            this.roundDisplay.textContent = "Finish!";
+            this.roundDisplay.textContent = `Finish: ${rounds}/${rounds}`;
             this.roundDisplay.style.color = "red";
             this.timeDisplay.textContent = "0";
             this.rTime.textContent = "0:00";
             this.timerRunning = false;
             updateSetupButton();
+            this.startBtn.textContent = 'Start';
+            this.startBtn.style.backgroundColor = '#007bff';
             beep(1000);
             return;
         }
@@ -315,7 +321,7 @@ class FlashTimer {
         if(remain===0){
             if (LCUS2.connected) sendPulse(this.sigON, this.sigOFF);
             this.roundNow++;
-            this.roundDisplay.textContent = "Just Now!";
+            this.roundDisplay.textContent = `Flash: ${this.roundNow}/${rounds}`;
             this.roundDisplay.style.color = "red";
         }
         else{
@@ -329,7 +335,14 @@ class FlashTimer {
             clearInterval(this.countdown);
             this.timerRunning=false;
             updateSetupButton();
+            this.startBtn.textContent = 'Reset';
+            this.startBtn.style.backgroundColor = '#008b8b';
+            return;
+        }
+        if(this.startBtn.textContent === 'Reset'){
             this.reset();
+            this.startBtn.textContent = 'Start';
+            this.startBtn.style.backgroundColor = '#007bff';
             return;
         }
         this.roundNow = 0;
@@ -337,6 +350,8 @@ class FlashTimer {
         this.countdown = setInterval(()=>this.tick(), 1000);
         this.timerRunning=true;
         updateSetupButton();
+        this.startBtn.textContent = 'Stop'
+        this.startBtn.style.backgroundColor = '#ff69b4';
     }
 }
 
